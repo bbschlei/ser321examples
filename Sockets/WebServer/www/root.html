@@ -8,8 +8,17 @@
 			<li>/file/sample.html -- returns the content of the file sample.html</li>
 			<li>/json -- returns a json of the /random request</a></li>
 			<li>/random -- returns index.html</a></li>
+			<li>/calculateDistance?x1=0&y1=0&x2=3&y2=4 -- Calculates the distance between two points (Example: 0,0 to 3,4)</li>
+			<li>/analyzeText?text=hello%20world%20this%20is%20a%20test -- Analyzes the given text to find the number of words, the longest and shortest word</li>
 		</ul>
 		<h3>File Structure in www (you can use /file/www/FILENAME):</h3>
 		${links}
+
+		<h2>Custom Requests</h2>
+		<p><strong>Calculate Distance:</strong> This function calculates the Euclidean distance between two points provided via URL parameters x1, y1 (for the first point) and x2, y2 (for the second point).</p>
+		<p>Example: <code>http://localhost:9000/calculateDistance?x1=0&y1=0&x2=3&y2=4</code></p>
+
+		<p><strong>Analyze Text:</strong> Analyze provided text to find the number of words, the longest and shortest word. Ensure text is URL encoded.</p>
+		<p>Example: <code>http://localhost:9000/analyzeText?text=hello%20world%20this%20is%20a%20test</code></p>
 	</body>
 </html>
