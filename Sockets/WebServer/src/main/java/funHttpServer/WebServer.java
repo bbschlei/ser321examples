@@ -25,6 +25,10 @@ import java.util.Random;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.nio.charset.Charset;
+import java.util.Comparator;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 
 class WebServer {
   public static void main(String args[]) {
@@ -194,51 +198,129 @@ class WebServer {
             builder.append("File not found: " + file);
           }
         } else if (request.contains("multiply?")) {
-          // This multiplies two numbers, there is NO error handling, so when
-          // wrong data is given this just crashes
-
           Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          // extract path parameters
           query_pairs = splitQuery(request.replace("multiply?", ""));
 
-          // extract required fields from parameters
-          Integer num1 = Integer.parseInt(query_pairs.get("num1"));
-          Integer num2 = Integer.parseInt(query_pairs.get("num2"));
+          // Check if both parameters are present
+          if (!query_pairs.containsKey("num1") || !query_pairs.containsKey("num2")) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Error: Missing required parameters 'num1' and 'num2'.");
+          } else {
+            try {
+              Integer num1 = Integer.parseInt(query_pairs.get("num1"));
+              Integer num2 = Integer.parseInt(query_pairs.get("num2"));
+              Integer result = num1 * num2;
 
-          // do math
-          Integer result = num1 * num2;
-
-          // Generate response
-          builder.append("HTTP/1.1 200 OK\n");
-          builder.append("Content-Type: text/html; charset=utf-8\n");
-          builder.append("\n");
-          builder.append("Result is: " + result);
-
-          // TODO: Include error handling here with a correct error code and
-          // a response that makes sense
+              builder.append("HTTP/1.1 200 OK\n");
+              builder.append("Content-Type: text/html; charset=utf-8\n");
+              builder.append("\n");
+              builder.append("Result is: " + result);
+            } catch (NumberFormatException e) {
+              builder.append("HTTP/1.1 400 Bad Request\n");
+              builder.append("Content-Type: text/html; charset=utf-8\n");
+              builder.append("\n");
+              builder.append("Error: Invalid number format. Both 'num1' and 'num2' must be numeric.");
+            } catch (Exception e) {
+              builder.append("HTTP/1.1 500 Internal Server Error\n");
+              builder.append("Content-Type: text/html; charset=utf-8\n");
+              builder.append("\n");
+              builder.append("Error: An unexpected error occurred: " + e.getMessage());
+            }
+          }
 
         } else if (request.contains("github?")) {
-          // pulls the query from the request and runs it with GitHub's REST API
-          // check out https://docs.github.com/rest/reference/
-          //
-          // HINT: REST is organized by nesting topics. Figure out the biggest one first,
-          //     then drill down to what you care about
-          // "Owner's repo is named RepoName. Example: find RepoName's contributors" translates to
-          //     "/repos/OWNERNAME/REPONAME/contributors"
+          try {
+            Map<String, String> query_pairs = splitQuery(request.replace("github?", ""));
+            String githubQuery = query_pairs.get("query");
+            if (githubQuery == null || githubQuery.trim().isEmpty()) {
+              throw new IllegalArgumentException("The GitHub query parameter is required.");
+            }
 
-          Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          query_pairs = splitQuery(request.replace("github?", ""));
-          String json = fetchURL("https://api.github.com/" + query_pairs.get("query"));
-          System.out.println(json);
+            String url = "https://api.github.com/" + githubQuery;
+            String json = fetchURL(url);
 
-          builder.append("HTTP/1.1 200 OK\n");
-          builder.append("Content-Type: text/html; charset=utf-8\n");
-          builder.append("\n");
-          builder.append("Check the todos mentioned in the Java source file");
-          // TODO: Parse the JSON returned by your fetch and create an appropriate
-          // response based on what the assignment document asks for
+            JSONArray repos = new JSONArray(json);
+            StringBuilder responseContent = new StringBuilder("<html><head><title>GitHub Repos</title></head><body>");
 
-        } else {
+            for (int i = 0; i < repos.length(); i++) {
+              JSONObject repo = repos.getJSONObject(i);
+              responseContent.append("<p><strong>Repo Name:</strong> ")
+                      .append(repo.getString("full_name"))
+                      .append(", <strong>ID:</strong> ")
+                      .append(repo.getInt("id"))
+                      .append(", <strong>Owner:</strong> ")
+                      .append(repo.getJSONObject("owner").getString("login"))
+                      .append("</p>");
+            }
+            responseContent.append("</body></html>");
+
+            builder.append("HTTP/1.1 200 OK\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append(responseContent.toString());
+          } catch (Exception e) {
+            builder.append("HTTP/1.1 500 Internal Server Error\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Error processing GitHub data: " + e.getMessage());
+          }
+
+
+        } else if (request.contains("calculateDistance")) {
+          try {
+            Map<String, String> query_pairs = splitQuery(request.replace("calculateDistance?", ""));
+            double x1 = Double.parseDouble(query_pairs.get("x1"));
+            double y1 = Double.parseDouble(query_pairs.get("y1"));
+            double x2 = Double.parseDouble(query_pairs.get("x2"));
+            double y2 = Double.parseDouble(query_pairs.get("y2"));
+            double distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+
+            builder.append("HTTP/1.1 200 OK\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Calculated distance: " + distance);
+          } catch (NumberFormatException | NullPointerException e) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Error: Invalid input for distance calculation.");
+          } catch (Exception e) {
+            builder.append("HTTP/1.1 500 Internal Server Error\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Error: An unexpected error occurred.");
+          }
+        } else if (request.contains("analyzeText")) {
+          try {
+            Map<String, String> query_pairs = splitQuery(request.replace("analyzeText?", ""));
+            String text = query_pairs.get("text");
+            if (text == null || text.trim().isEmpty()) {
+              throw new IllegalArgumentException("Text parameter is required.");
+            }
+
+            String[] words = text.split("\\s+");
+            String longestWord = Arrays.stream(words).max(Comparator.comparingInt(String::length)).orElse("");
+            String shortestWord = Arrays.stream(words).min(Comparator.comparingInt(String::length)).orElse("");
+
+            builder.append("HTTP/1.1 200 OK\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Number of words: " + words.length + ", Longest word: " + longestWord + ", Shortest word: " + shortestWord);
+          } catch (IllegalArgumentException e) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Error: " + e.getMessage());
+          } catch (Exception e) {
+            builder.append("HTTP/1.1 500 Internal Server Error\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("An unexpected error occurred: " + e.getMessage());
+          }
+
+        }  else {
           // if the request is not recognized at all
 
           builder.append("HTTP/1.1 400 Bad Request\n");
